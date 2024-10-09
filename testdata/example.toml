@@ -1,0 +1,63 @@
+# spend -> awareness
+[Spend.Awareness]
+transformation = "saturation_function"
+
+[[Spend.Awareness.parameters]]
+name = 'alpha'
+distribution = {name = 'HalfCauchy', beta = 1}
+
+[[Spend.Awareness.parameters]]
+name = 'beta'
+distribution = {name = 'HalfNormal', sigma = 1}
+
+[[Spend.Awareness.parameters]]
+name = 'saturation'
+distribution = {name = 'HalfNormal', sigma = 1}
+
+# spend -> preference
+[Spend.Preference]
+transformation = "saturation_function"
+
+[[Spend.Preference.parameters]]
+name = 'alpha'
+distribution = {name = 'HalfCauchy', beta = 1}
+
+[[Spend.Preference.parameters]]
+name = 'beta'
+distribution = {name = 'HalfNormal', sigma = 1}
+
+[[Spend.Preference.parameters]]
+name = 'saturation'
+distribution = {name = 'HalfNormal', sigma = 1}
+
+# awareness -> Consideration
+[Awareness.Consideration]
+transformation = "saturation_function"
+
+[[Awareness.Consideration.parameters]]
+name = 'alpha'
+distribution = {name = 'HalfCauchy', beta = 1}
+
+[[Awareness.Consideration.parameters]]
+name = 'beta'
+distribution = {name = 'HalfNormal', sigma = 1}
+
+[[Awareness.Consideration.parameters]]
+name = 'saturation'
+distribution = {name = 'HalfNormal', sigma = 1}
+
+# consideration -> preference
+[Consideration.Preference]
+transformation = "saturation_function"
+
+[[Consideration.Preference.parameters]]
+name = 'alpha'
+distribution = {name = 'HalfCauchy', beta = 1}
+
+[[Consideration.Preference.parameters]]
+name = 'beta'
+distribution = {name = 'HalfNormal', sigma = 1}
+
+[[Consideration.Preference.parameters]]
+name = 'saturation'
+distribution = {name = 'HalfNormal', sigma = 1}
