@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "nestedmodels"
+version = "0.1.0"
+description = ""
+authors = ["Lorenzo Drumond <lorenzo.drumond@neomediaworld.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+pymc = "^5.17.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
