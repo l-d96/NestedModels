@@ -97,8 +97,12 @@ class Config(BaseModel):
     def from_toml(config: TOMLDocument) -> Config:
         nodes = []
 
+        # track leaf nodes
+        all_nodes_found = set()
+
         for name, targets in config.items():
             node_name = name
+            all_nodes_found.add(node_name)
             transformations = []
 
             if not hasattr(targets, 'items'):
@@ -106,6 +110,8 @@ class Config(BaseModel):
                     f"variable '{name}' has no configuration")
 
             for target, target_params in targets.items():
+                # track leaf nodes
+                all_nodes_found.add(target)
                 target_name = target
                 transformation_name = target_params.get('transformation')
                 transformation_params = target_params.get('parameters')
@@ -137,6 +143,13 @@ class Config(BaseModel):
             node = Node(name=node_name,
                         targets=transformations)
             nodes.append(node)
+
+        # add leaf nodes to the configuration model
+        for node_name in all_nodes_found:
+            if node_name in [n.name for n in nodes]:
+                continue
+            new_node = Node(name=node_name, targets=[])
+            nodes.append(new_node)
 
         return Config(nodes=nodes)
 
