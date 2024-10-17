@@ -1,14 +1,10 @@
 # spend -> awareness
 [Spend.Awareness]
-transformation = "saturation_function"
+transformation = "linear_saturation"
 
 [[Spend.Awareness.parameters]]
-name = 'alpha'
+name = 'coefficient'
 distribution = {name = 'HalfCauchy', beta = 1}
-
-[[Spend.Awareness.parameters]]
-name = 'beta'
-distribution = {name = 'HalfNormal', sigma = 1}
 
 [[Spend.Awareness.parameters]]
 name = 'saturation'
@@ -16,15 +12,11 @@ distribution = {name = 'HalfNormal', sigma = 1}
 
 # spend -> preference
 [Spend.Preference]
-transformation = "saturation_function"
+transformation = "linear_saturation"
 
 [[Spend.Preference.parameters]]
-name = 'alpha'
+name = 'coefficient'
 distribution = {name = 'HalfCauchy', beta = 1}
-
-[[Spend.Preference.parameters]]
-name = 'beta'
-distribution = {name = 'HalfNormal', sigma = 1}
 
 [[Spend.Preference.parameters]]
 name = 'saturation'
@@ -32,15 +24,11 @@ distribution = {name = 'HalfNormal', sigma = 1}
 
 # awareness -> Consideration
 [Awareness.Consideration]
-transformation = "saturation_function"
+transformation = "linear_saturation"
 
 [[Awareness.Consideration.parameters]]
-name = 'alpha'
+name = 'coefficient'
 distribution = {name = 'HalfCauchy', beta = 1}
-
-[[Awareness.Consideration.parameters]]
-name = 'beta'
-distribution = {name = 'HalfNormal', sigma = 1}
 
 [[Awareness.Consideration.parameters]]
 name = 'saturation'
@@ -48,15 +36,11 @@ distribution = {name = 'HalfNormal', sigma = 1}
 
 # consideration -> preference
 [Consideration.Preference]
-transformation = "saturation_function"
+transformation = "linear_saturation"
 
 [[Consideration.Preference.parameters]]
-name = 'alpha'
+name = 'coefficient'
 distribution = {name = 'HalfCauchy', beta = 1}
-
-[[Consideration.Preference.parameters]]
-name = 'beta'
-distribution = {name = 'HalfNormal', sigma = 1}
 
 [[Consideration.Preference.parameters]]
 name = 'saturation'
