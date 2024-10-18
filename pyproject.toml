@@ -10,6 +10,7 @@ python = ">=3.10,<3.13"
 pymc = "^5.17.0"
 tomlkit = "^0.13.2"
 pydantic = "^2.9.2"
+graphviz = "^0.20.3"
 
 
 [build-system]

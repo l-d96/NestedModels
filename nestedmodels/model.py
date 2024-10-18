@@ -42,6 +42,14 @@ class NestedModel:
                                observed=observed_data,
                                shape=(n_obs_y, len(target_variables)),
                                dims=('obs', 'variables'))
+
+    def fit(self) -> None:
+        if self._model is None:
+            raise Exception("model hasn't been compiled yet")
+
+        with self._model:
+            self.idata = pm.sample()
+
     def _compile_model(self, nodes: list[Node], explored: list[Node]) -> None:
         if not nodes:
             return
@@ -98,6 +106,15 @@ class NestedModel:
                 mus[name] = v
 
         return mus
+
+    def to_graphviz(self, filename: str | Path):
+        if self._model is None:
+            raise Exception("model hasn't been compiled yet")
+
+        fig = pm.model_to_graphviz(self._model)
+        fig.render(filename, format='png', cleanup=True)
+
+
 class CyclicalGraphError(Exception):
     """
         Cycles are not allowed in DAG
