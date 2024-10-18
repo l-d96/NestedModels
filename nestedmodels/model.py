@@ -3,6 +3,7 @@ from typing import Optional
 import pandas as pd
 import pymc as pm
 import pytensor.tensor as pt
+from graphviz import Digraph
 from pathlib import Path
 
 
@@ -107,12 +108,40 @@ class NestedModel:
 
         return mus
 
-    def to_graphviz(self, filename: str | Path):
+    def to_graphviz(self, filename: Optional[str | Path] = None,
+                    figsize: Optional[tuple[int, int]] = None) -> Digraph:
         if self._model is None:
             raise Exception("model hasn't been compiled yet")
 
-        fig = pm.model_to_graphviz(self._model)
-        fig.render(filename, format='png', cleanup=True)
+        variables = self._model.unobserved_RVs
+        transformations = [v.name for v in variables
+                           if v.name.endswith("_transformation")]
+        fig = pm.model_to_graphviz(self._model, figsize=figsize)
+
+        # remove transformations from digraph
+        arrow = " -> "
+        edges = [edge.split(arrow) for edge in fig.body if arrow in edge]
+        for transformation in transformations:
+            children = [edge[1] for edge in edges if transformation in edge[0]]
+            parents = [edge[0] for edge in edges if transformation in edge[1]]
+            for par in parents:
+                for child in children:
+                    new_edge = arrow.join([par, child])
+                    fig.body.append(new_edge)
+            # remove everything containing the transformation node
+            for el in fig.body.copy():
+                if transformation in el:
+                    fig.body.remove(el)
+
+        if filename:
+            fig.render(filename, format='png', cleanup=True)
+
+        return fig
+
+    def is_compiled(self) -> bool:
+        if self._model is not None:
+            return True
+        return False
 
 
 class CyclicalGraphError(Exception):
