@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Any,  Callable
+from typing import Any, Callable
 from typing_extensions import Self
 from tomlkit import TOMLDocument
 from pydantic import BaseModel, field_validator, model_validator
+import pytensor.tensor as pt
 import pymc as pm
 import inspect
 
@@ -71,6 +72,22 @@ class Transformation(BaseModel):
 class Node(BaseModel):
     name: str
     targets: list[Transformation]
+
+    def track_node(self, model: pm.Model, input: pt.TensorVariable) -> None:
+        with model:
+            for t in self.targets:
+                name = f"{self.name}_{t.target_name}_transformation"
+                func: Callable = getattr(dt, t.function_name)
+                params = {}
+                for param in t.parameters:
+                    pymc_name = f"{self.name}_{t.target_name}_{param.name}"
+                    distribution: pm.Distribution = getattr(
+                        pm, param.distribution_name)
+                    param_distribution = distribution(
+                        name=pymc_name, **param.hyperparameters)
+                    params[param.name] = param_distribution
+
+                pm.Deterministic(name, func(input_=input, **params))
 
 
 class Config(BaseModel):
