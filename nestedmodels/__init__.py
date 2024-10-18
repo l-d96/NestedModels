@@ -1,2 +1,2 @@
-from .utils import read_json, read_toml
+from .config import read_json, read_toml
 from .model import NestedModel

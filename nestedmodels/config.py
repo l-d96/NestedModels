@@ -1,13 +1,16 @@
 from __future__ import annotations
 from typing import Any, Callable
 from typing_extensions import Self
-from tomlkit import TOMLDocument
+from tomlkit import TOMLDocument, load
 from pydantic import BaseModel, field_validator, model_validator
+from pathlib import Path
+from .utils import load_custom_transformations
+import json
 import pytensor.tensor as pt
 import pymc as pm
 import inspect
 
-from . import default_transformations as dt
+TRANSFORMATIONS = load_custom_transformations()
 
 
 class Parameter(BaseModel):
@@ -33,7 +36,7 @@ class Transformation(BaseModel):
     @field_validator('function_name')
     @classmethod
     def _validate_function_name(cls, function_name: str) -> str:
-        if function_name not in dt.__all__:
+        if function_name not in TRANSFORMATIONS.keys():
             raise ValueError(
                 f"'{function_name}' is not a valid transformation")
 
@@ -41,7 +44,7 @@ class Transformation(BaseModel):
 
     @model_validator(mode='after')
     def _validate_transformation_args(self) -> Self:
-        function: Callable = getattr(dt, self.function_name)
+        function: Callable = TRANSFORMATIONS[self.function_name]
         signature = inspect.signature(function)
         optional_args = [k for k, v in
                          signature.parameters.items()
@@ -77,7 +80,7 @@ class Node(BaseModel):
         with model:
             for t in self.targets:
                 name = f"{self.name}_{t.target_name}_transformation"
-                func: Callable = getattr(dt, t.function_name)
+                func: Callable = TRANSFORMATIONS[t.function_name]
                 params = {}
                 for param in t.parameters:
                     pymc_name = f"{self.name}_{t.target_name}_{param.name}"
@@ -179,3 +182,25 @@ class ConfigurationError(Exception):
     """
         Configuration has something wrong
     """
+
+
+def read_toml(file: Path | str) -> Config:
+    try:
+        with open(file, "r") as f:
+            toml = load(f)
+            config = Config.from_toml(toml)
+            return config
+    except FileNotFoundError as e:
+        print("error:", e)
+        return
+
+
+def read_json(file: Path | str) -> Config:
+    try:
+        with open(file, "r") as f:
+            json_f = json.load(f)
+            config = Config.from_json(json_f)
+            return config
+    except FileNotFoundError as e:
+        print("error:", e)
+        return
