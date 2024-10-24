@@ -7,6 +7,7 @@ import sys
 from . import default_transformations as dt
 
 
+# from https://stackoverflow.com/questions/67631/how-can-i-import-a-module-dynamically-given-the-full-path
 def load_custom_transformations(custom_dir: Optional[Path | str] = None) -> dict[str, Callable]:
     if custom_dir is None:
         custom_dir = (Path(os.getenv('XDG_DATA_HOME')) /

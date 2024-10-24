@@ -5,10 +5,12 @@ from tomlkit import TOMLDocument, load
 from pydantic import BaseModel, field_validator, model_validator
 from pathlib import Path
 from .utils import load_custom_transformations
+import numpy as np
 import json
 import pytensor.tensor as pt
 import pymc as pm
 import inspect
+import xarray
 
 TRANSFORMATIONS = load_custom_transformations()
 
@@ -91,6 +93,23 @@ class Node(BaseModel):
                     params[param.name] = param_distribution
 
                 pm.Deterministic(name, func(input_=input, **params))
+
+    def posterior_transformations(
+            self,
+            trace: xarray.DataArray,
+            input: np.ndarray, data_dict: dict[str, pt.TensorVariable]):
+
+        for t in self.targets:
+            name = f"{self.name}_{t.target_name}_transformation"
+            func: Callable = TRANSFORMATIONS[t.function_name]
+            params = {}
+            for param in t.parameters:
+                pymc_name = f"{self.name}_{t.target_name}_{param.name}"
+                param_posterior = trace.posterior[pymc_name] \
+                    .data.reshape(-1, 1)
+                params[param.name] = param_posterior
+
+            data_dict[name] = func(input_=input, **params)
 
 
 class Config(BaseModel):

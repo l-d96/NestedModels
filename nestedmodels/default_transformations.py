@@ -8,7 +8,7 @@ def saturation_function(input_: pt.TensorVariable,
 
 def linear_function(input_: pt.TensorVariable,
                     coefficient: float) -> pt.TensorVariable:
-    return pt.dot(input_, coefficient)
+    return input_ * coefficient
 
 
 def hill_function(input_: pt.TensorVariable,

@@ -5,14 +5,17 @@ import pymc as pm
 import pytensor.tensor as pt
 from graphviz import Digraph
 from pathlib import Path
+import xarray as xr
+import numpy as np
 
 
 class NestedModel:
     def __init__(self, config: Config) -> None:
         self._config = config
         self._model: Optional[pm.Model] = None
+        self._targets = None
 
-    def compile(self, X: pd.DataFrame, y: pd.DataFrame) -> None:
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame) -> None:
         n_obs_x = X.shape[0]
         n_obs_y = y.shape[0]
         if n_obs_x != n_obs_y:
@@ -20,6 +23,7 @@ class NestedModel:
                 "input and target have different number of observations")
 
         self._model = pm.Model()
+        self._targets = y.columns
 
         # track data
         with self._model:
@@ -44,12 +48,64 @@ class NestedModel:
                                shape=(n_obs_y, len(target_variables)),
                                dims=('obs', 'variables'))
 
-    def fit(self) -> None:
-        if self._model is None:
-            raise Exception("model hasn't been compiled yet")
-
         with self._model:
             self.idata = pm.sample()
+
+    def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        if not isinstance(X, pd.DataFrame):
+            raise Exception("input must be a pandas dataframe.")
+        if self._model is None:
+            raise Exception("model hasn't been compiled yet")
+        data_dict: dict[str, np.ndarray] = {}
+        self._predict(X, self._config.nodes, [], data_dict)
+
+        data_vars = {}
+        for k, v in data_dict.items():
+            if not k.endswith("_mu"):
+                continue
+            name = k.removesuffix("_mu")
+            val: np.ndarray = np.empty((1))
+            if isinstance(v, pt.TensorVariable):
+                val = v.eval()
+            elif isinstance(v, np.ndarray):
+                val = v
+            if not isinstance(val, np.ndarray):
+                raise Exception("final value is not a numpy array")
+            data_vars[name] = (['samples', 'observations'], val)
+        return xr.Dataset(data_vars=data_vars)
+
+    def _predict(self, X: pd.DataFrame,
+                 nodes: list[Node],
+                 explored: list[Node],
+                 data_dict: dict[str, np.ndarray]):
+        if not nodes:
+            return
+        for n in nodes:
+            if n in explored:
+                continue
+            explored.append(n)
+            prior_nodes = self._config.get_pointers(n.name)
+
+            self._predict(X, prior_nodes, explored, data_dict)
+
+            if prior_nodes:
+                intercept = self.idata.posterior[f'{n.name}_intercept'] \
+                    .data.reshape(-1, 1)
+                input = intercept + \
+                    sum(self._get_parent_posterior(n.name, data_dict))
+                data_dict[f"{n.name}_intercept"] = intercept
+                data_dict[f"{n.name}_mu"] = input
+
+                n.posterior_transformations(self.idata, input, data_dict)
+            else:
+                for c in X.columns:
+                    if c == n.name:
+                        input = X[c].values.reshape(1, -1)
+                        print(input)
+                        break
+                else:
+                    raise Exception(f"input data '{n.name}' is not available")
+                n.posterior_transformations(self.idata, input, data_dict)
 
     def _compile_model(self, nodes: list[Node], explored: list[Node]) -> None:
         if not nodes:
@@ -70,10 +126,10 @@ class NestedModel:
 
                 n.track_node(self._model, input)
             else:
-                input = self._get_data_input(n.name)
+                input = self._get_input_variable(n.name)
                 n.track_node(self._model, input)
 
-    def _get_data_input(self, name: str) -> pt.sharedvar.TensorSharedVariable:
+    def _get_input_variable(self, name: str) -> pt.sharedvar.TensorSharedVariable:
         if self._model is None:
             raise Exception("model hasn't been compiled yet")
 
@@ -92,6 +148,22 @@ class NestedModel:
         for v in variables:
             if v.name.endswith(f"_{name}_transformation"):
                 parents.append(v)
+
+        return parents
+
+    def _get_parent_posterior(
+            self, name: str,
+            data_dict: dict[str, np.ndarray]) -> list[pt.TensorVariable]:
+
+        if self._model is None:
+            raise Exception("model hasn't been compiled yet")
+
+        variables = self._model.unobserved_RVs
+        parents = []
+        for v in variables:
+            if v.name.endswith(f"_{name}_transformation"):
+                posterior = data_dict[v.name]
+                parents.append(posterior)
 
         return parents
 
