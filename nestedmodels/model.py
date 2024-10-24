@@ -181,7 +181,7 @@ class NestedModel:
 
         return mus
 
-    def to_graphviz(self, figsize: Optional[tuple[int, int]] = None) -> Digraph:
+    def to_graphviz(self, figsize: Optional[tuple[int, int]] = None, remove_intermediate: bool = True) -> Digraph:
         if self._model is None:
             raise Exception("model hasn't been compiled yet")
 
@@ -191,19 +191,20 @@ class NestedModel:
         fig = pm.model_to_graphviz(self._model, figsize=figsize)
 
         # remove transformations from digraph
-        arrow = " -> "
-        edges = [edge.split(arrow) for edge in fig.body if arrow in edge]
-        for transformation in transformations:
-            children = [edge[1] for edge in edges if transformation in edge[0]]
-            parents = [edge[0] for edge in edges if transformation in edge[1]]
-            for par in parents:
-                for child in children:
-                    new_edge = arrow.join([par, child])
-                    fig.body.append(new_edge)
-            # remove everything containing the transformation node
-            for el in fig.body.copy():
-                if transformation in el:
-                    fig.body.remove(el)
+        if remove_intermediate:
+            arrow = " -> "
+            edges = [edge.split(arrow) for edge in fig.body if arrow in edge]
+            for transformation in transformations:
+                children = [edge[1] for edge in edges if transformation in edge[0]]  # nopep8
+                parents = [edge[0] for edge in edges if transformation in edge[1]]  # nopep8
+                for par in parents:
+                    for child in children:
+                        new_edge = arrow.join([par, child])
+                        fig.body.append(new_edge)
+                # remove everything containing the transformation node
+                for el in fig.body.copy():
+                    if transformation in el:
+                        fig.body.remove(el)
 
         return fig
 
