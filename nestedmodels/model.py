@@ -4,9 +4,11 @@ import pandas as pd
 import pymc as pm
 import pytensor.tensor as pt
 from graphviz import Digraph
-from pathlib import Path
 import xarray as xr
 import numpy as np
+import matplotlib.pyplot as plt
+import arviz as az
+import re
 
 
 class NestedModel:
@@ -101,7 +103,6 @@ class NestedModel:
                 for c in X.columns:
                     if c == n.name:
                         input = X[c].values.reshape(1, -1)
-                        print(input)
                         break
                 else:
                     raise Exception(f"input data '{n.name}' is not available")
@@ -180,8 +181,7 @@ class NestedModel:
 
         return mus
 
-    def to_graphviz(self, filename: Optional[str | Path] = None,
-                    figsize: Optional[tuple[int, int]] = None) -> Digraph:
+    def to_graphviz(self, figsize: Optional[tuple[int, int]] = None) -> Digraph:
         if self._model is None:
             raise Exception("model hasn't been compiled yet")
 
@@ -205,10 +205,27 @@ class NestedModel:
                 if transformation in el:
                     fig.body.remove(el)
 
-        if filename:
-            fig.render(filename, format='png', cleanup=True)
-
         return fig
+
+    def summary(self) -> pd.DataFrame:
+        summary: pd.DataFrame = az.summary(self.idata,
+                                           var_names=self._get_free_RVs())
+        summary['prior'] = summary.index.map(self._get_prior_distribution_name)
+        return summary
+
+    def plot_trace(self) -> plt.Figure:
+        return az.plot_trace(self.idata, var_names=self._get_free_RVs())
+
+    def _get_free_RVs(self) -> list[str]:
+        return [v.name for v in self._model.free_RVs]
+
+    def _get_prior_distribution_name(self, name: str) -> str:
+        var = self._model[name]
+        split_name = " \\sim "
+        latex_repr = var._repr_latex_()
+        elements = re.findall(r"{(.*)}(\(.*\))",
+                              latex_repr.split(split_name)[1])[0]
+        return elements[0] + elements[1].replace("~", " ")
 
     def is_compiled(self) -> bool:
         if self._model is not None:
