@@ -17,7 +17,7 @@ class NestedModel:
         self._model: Optional[pm.Model] = None
         self._targets = None
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame) -> None:
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame, **kwargs) -> None:
         n_obs_x = X.shape[0]
         n_obs_y = y.shape[0]
         if n_obs_x != n_obs_y:
@@ -51,7 +51,7 @@ class NestedModel:
                                dims=('obs', 'variables'))
 
         with self._model:
-            self.idata = pm.sample()
+            self.idata = pm.sample(**kwargs)
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(X, pd.DataFrame):
