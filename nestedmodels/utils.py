@@ -3,6 +3,7 @@ from typing import Optional, Callable
 import importlib.util
 import os
 import sys
+import inspect
 
 from . import default_transformations as dt
 
@@ -25,16 +26,41 @@ def load_custom_transformations(custom_dir: Optional[Path | str] = None) -> dict
 
     loaded_modules = [dt]
     for mp in module_paths:
-        if not mp.is_file():
+        module = import_module(mp)
+        if module is None:
             continue
-        module_name = mp.stem
-        spec = importlib.util.spec_from_file_location(module_name, mp)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
         loaded_modules.append(module)
 
     transformations = {name: getattr(
         module, name) for module in loaded_modules for name in module.__all__}
 
+    # validation step
+    for k, f in transformations.items():
+        validate_transformation_args(f)
+
     return transformations
+
+
+def import_module(mp: Path | str):
+    mp = Path(mp)
+    if not mp.is_file():
+        return None
+    module_name = mp.stem
+    spec = importlib.util.spec_from_file_location(module_name, mp)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+
+    return module
+
+
+def validate_transformation_args(function: Callable) -> None:
+    # it must contain 'input_'
+    signature = inspect.signature(function)
+    mandatory_args = [k for k, v in
+                      signature.parameters.items()
+                      if v.default is inspect.Parameter.empty]
+    if 'input_' not in mandatory_args:
+        raise Exception(
+            f"transformation '{function.__name__}' doesn't contain mandatory paramater 'input_'")
+    return True

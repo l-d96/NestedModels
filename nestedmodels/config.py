@@ -4,7 +4,9 @@ from typing_extensions import Self
 from tomlkit import TOMLDocument, load
 from pydantic import BaseModel, field_validator, model_validator
 from pathlib import Path
-from .utils import load_custom_transformations
+from .utils import (load_custom_transformations,
+                    validate_transformation_args,
+                    import_module)
 import numpy as np
 import json
 import pytensor.tensor as pt
@@ -277,3 +279,40 @@ def read_json(file: Path | str) -> Config:
     except FileNotFoundError as e:
         print("error:", e)
         return
+
+
+def reload_transformations(custom_dir: Optional[Path | str] = None) -> None:
+    global TRANSFORMATIONS
+    TRANSFORMATIONS = load_custom_transformations(custom_dir)
+
+
+def add_module(filepath: Path | str) -> None:
+    global TRANSFORMATIONS
+
+    fp = Path(filepath)
+    if not fp.exists():
+        raise Exception("module does not exist.")
+    if not fp.is_file():
+        raise Exception("path is not a file.")
+    if not fp.suffix != ".py":
+        raise Exception("file is not a python module.")
+    module = import_module(filepath)
+
+    for name in module.__all__:
+        transformation = getattr(module, name)
+        validate_transformation_args(transformation)
+
+        TRANSFORMATIONS[name] = transformation
+
+
+def add_function(function: Callable) -> None:
+    global TRANSFORMATIONS
+
+    name = function.__name__
+    validate_transformation_args(function)
+
+    TRANSFORMATIONS[name] = function
+
+
+def list_transformations() -> list[str]:
+    return list(TRANSFORMATIONS.keys())
