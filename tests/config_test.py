@@ -1,18 +1,30 @@
-from nestedmodels.config import (Config,
-                                 Node,
-                                 Transformation,
-                                 Parameter)
-from nestedmodels import read_toml
-from tomlkit import load
-import math
+from nestedmodels import read_toml, NestedModel
+import pytensor.tensor as pt
+import pandas as pd
+import numpy as np
 
 
-def saturation_function(x, saturation):
-    return 1-math.exp(-x/saturation)
-
+X = pd.DataFrame({'Spend': np.random.normal(0, 1, (100,))})
+y = pd.DataFrame({
+                 'Awareness': np.random.normal(0, 1, (10,)),
+                 'Consideration': np.random.normal(0, 1, (10,)),
+                 'Preference': np.random.normal(0, 1, (10,)),
+                 })
 
 configuration = read_toml("./tests/data/example.toml")
-print(configuration.get_pointers('Preference'))
+model = NestedModel(configuration)
+model.fit(X, y)
+mus = model.predict(X)
+# v: pt.variable.TensorVariable
+# for v in model._model.unobserved_RVs:
+#     if v.name == "Preference_mu":
+#         v.dprint()
+# print(model._model.unobserved_RVs)
+model.to_graphviz('/home/ld/Desktop/Projects/NestedModels/tests/test.png')
+# print(model.idata)
+
+# print(configuration)
+# print([n.name for n in configuration.nodes])
 
 # with open("../tests/data/example.toml") as f:
 #     configuration_toml = load(f)

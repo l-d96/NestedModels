@@ -1,0 +1,47 @@
+[BrandSpend.Consideration]
+transformation = 'linear_hill'
+
+[[BrandSpend.Consideration.parameters]]
+name = 'coefficient'
+distribution = {name = 'HalfNormal', sigma=20}
+
+[[BrandSpend.Consideration.parameters]]
+name = 'half_life'
+distribution = {name = 'HalfNormal', sigma=20}
+
+[[BrandSpend.Consideration.parameters]]
+name = 'saturation'
+distribution = {name = 'HalfNormal', sigma=20}
+
+[PerfSpend.Consideration]
+transformation = 'linear_saturation'
+
+[[PerfSpend.Consideration.parameters]]
+name = 'coefficient'
+distribution = {name = 'HalfNormal', sigma=20}
+
+[[PerfSpend.Consideration.parameters]]
+name = 'saturation'
+distribution = {name = 'HalfNormal', sigma=20}
+
+[PerfSpend.EVUnits]
+transformation = 'linear_function'
+
+[[PerfSpend.EVUnits.parameters]]
+name = 'coefficient'
+distribution = {name = 'HalfNormal', sigma=20}
+
+[Consideration]
+sigma = {name='HalfCauchy', beta=2}
+intercept = {name = 'HalfNormal', sigma=2}
+
+[Consideration.EVUnits]
+transformation = 'linear_function'
+
+[[Consideration.EVUnits.parameters]]
+name = 'coefficient'
+distribution = {name = 'HalfNormal', sigma=20}
+
+[EVUnits]
+sigma = {name='HalfCauchy', beta=2}
+intercept = {name = 'HalfNormal', sigma=2}

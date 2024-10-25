@@ -1,0 +1,32 @@
+[radio.TV]
+transformation = 'linear_function'
+
+[[radio.TV.parameters]]
+name = 'coefficient'
+distribution = {name = 'HalfNormal', sigma = 2}
+
+[newspaper.TV]
+transformation = 'linear_saturation'
+
+[[newspaper.TV.parameters]]
+name = 'saturation'
+distribution = {name='Normal', mu = 10, sigma = 1}
+
+[[newspaper.TV.parameters]]
+name = 'coefficient'
+distribution = {name='HalfNormal', sigma = 2}
+
+[TV]
+intercept = {name='HalfNormal', sigma=1}
+sigma = {name='HalfCauchy', beta = 0.1}
+
+[TV.sales]
+transformation = 'linear_function'
+
+[[TV.sales.parameters]]
+name = 'coefficient'
+distribution = {name='HalfNormal', sigma = 2}
+
+[sales]
+intercept = {name='HalfNormal', sigma=1}
+sigma = {name='HalfCauchy', beta = 0.1}
