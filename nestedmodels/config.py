@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 from typing_extensions import Self
 from tomlkit import TOMLDocument, load
 from pydantic import BaseModel, field_validator, model_validator
@@ -77,9 +77,23 @@ class Transformation(BaseModel):
 class Node(BaseModel):
     name: str
     targets: list[Transformation]
+    intercept: Optional[Parameter]
+    sigma: Optional[Parameter]
 
     def track_node(self, model: pm.Model, input: pt.TensorVariable) -> None:
         with model:
+            if self.intercept is not None:
+                intercept_distribution: pm.Distribution = getattr(
+                    pm, self.intercept.distribution_name)
+                intercept = intercept_distribution(name=f"{self.name}_intercept",
+                                                   **self.intercept.hyperparameters)
+                input = pm.Deterministic(f"{self.name}_mu",
+                                         intercept + input, dims='obs')
+            if self.intercept is not None:
+                sigma_distribution: pm.Distribution = getattr(
+                    pm, self.sigma.distribution_name)
+                sigma_distribution(name=f"{self.name}_sigma",
+                                   **self.sigma.hyperparameters)
             for t in self.targets:
                 name = f"{self.name}_{t.target_name}_transformation"
                 func: Callable = TRANSFORMATIONS[t.function_name]
@@ -98,6 +112,13 @@ class Node(BaseModel):
             self,
             trace: xarray.DataArray,
             input: np.ndarray, data_dict: dict[str, pt.TensorVariable]):
+
+        if self.intercept is not None:
+            intercept = trace.posterior[f'{self.name}_intercept'].data.reshape(
+                -1, 1)
+            input += intercept
+            data_dict[f"{self.name}_intercept"] = intercept
+            data_dict[f"{self.name}_mu"] = input
 
         for t in self.targets:
             name = f"{self.name}_{t.target_name}_transformation"
@@ -140,15 +161,20 @@ class Config(BaseModel):
         all_nodes_found = set()
 
         for name, targets in config.items():
+            all_nodes_found.add(name)
             node_name = name
-            all_nodes_found.add(node_name)
+
             transformations = []
 
             if not hasattr(targets, 'items'):
                 raise ConfigurationError(
                     f"variable '{name}' has no configuration")
 
+            intercept_param, sigma_param = Config._get_intercept_sigma(targets)
             for target, target_params in targets.items():
+                # ignore current node intercept and sigma configuration
+                if target in ['intercept', 'sigma']:
+                    continue
                 # track leaf nodes
                 all_nodes_found.add(target)
                 target_name = target
@@ -158,16 +184,8 @@ class Config(BaseModel):
                 for param in transformation_params:
                     param_name = param.get('name')
                     distribution_params = param.get('distribution')
-                    distribution_name = ''
-                    hyperparameters = {}
-                    if not hasattr(distribution_params, 'items'):
-                        raise ConfigurationError(
-                            f"parameter '{param_name}' has no configuration")
-                    for attribute, val in distribution_params.items():
-                        if attribute == 'name':
-                            distribution_name = val
-                            continue
-                        hyperparameters[attribute] = val
+                    distribution_name, hyperparameters = Config._get_distribution_params(
+                        param_name, distribution_params)
 
                     parameter = Parameter(name=param_name,
                                           distribution_name=distribution_name,
@@ -180,7 +198,9 @@ class Config(BaseModel):
                 transformations.append(transformation)
 
             node = Node(name=node_name,
-                        targets=transformations)
+                        targets=transformations,
+                        intercept=intercept_param,
+                        sigma=sigma_param)
             nodes.append(node)
 
         # add leaf nodes to the configuration model
@@ -191,6 +211,40 @@ class Config(BaseModel):
             nodes.append(new_node)
 
         return Config(nodes=nodes)
+
+    @staticmethod
+    def _get_distribution_params(param_name, distribution_params):
+        if not hasattr(distribution_params, 'items'):
+            raise ConfigurationError(
+                f"parameter '{param_name}' has no configuration")
+        distribution_name = ''
+        hyperparameters = {}
+        for attribute, val in distribution_params.items():
+            if attribute == 'name':
+                distribution_name = val
+                continue
+            hyperparameters[attribute] = val
+
+        return distribution_name, hyperparameters
+
+    @staticmethod
+    def _get_intercept_sigma(targets):
+        intercept = targets.get('intercept')
+        sigma = targets.get('sigma')
+        if intercept is None or sigma is None:
+            return None, None
+        intercept_dist, intercept_hyper = Config._get_distribution_params(
+            'intercept', intercept)
+        sigma_dist, sigma_hyper = Config._get_distribution_params(
+            'sigma', sigma)
+        intercept_param = Parameter(name='intercept',
+                                    distribution_name=intercept_dist,
+                                    hyperparameters=intercept_hyper)
+        sigma_param = Parameter(name='sigma',
+                                distribution_name=sigma_dist,
+                                hyperparameters=sigma_hyper)
+
+        return intercept_param, sigma_param
 
     @staticmethod
     def from_json(config: list[Any] | dict[str, Any]) -> Config:

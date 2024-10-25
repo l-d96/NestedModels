@@ -40,12 +40,13 @@ class NestedModel:
 
         self._compile_model(self._config.nodes, [])
         mus = self._get_mu_variables()
+        sigmas = self._get_sigma_variables()
 
         mu_all = pt.stack([mus[c] for c in target_variables], axis=1)
+        sigma_all = pt.stack([sigmas[c] for c in target_variables], axis=1)
 
         with self._model:
-            sigma = pm.HalfCauchy('sigma', 5)
-            target = pm.Normal('target', mu=mu_all, sigma=sigma,
+            target = pm.Normal('target', mu=mu_all, sigma=sigma_all,
                                observed=observed_data,
                                shape=(n_obs_y, len(target_variables)),
                                dims=('obs', 'variables'))
@@ -91,12 +92,7 @@ class NestedModel:
             self._predict(X, prior_nodes, explored, data_dict)
 
             if prior_nodes:
-                intercept = self.idata.posterior[f'{n.name}_intercept'] \
-                    .data.reshape(-1, 1)
-                input = intercept + \
-                    sum(self._get_parent_posterior(n.name, data_dict))
-                data_dict[f"{n.name}_intercept"] = intercept
-                data_dict[f"{n.name}_mu"] = input
+                input = sum(self._get_parent_posterior(n.name, data_dict))
 
                 n.posterior_transformations(self.idata, input, data_dict)
             else:
@@ -121,9 +117,7 @@ class NestedModel:
 
             if prior_nodes:
                 with self._model:
-                    intercept = pm.HalfNormal(f"{n.name}_intercept")
-                    input = pm.Deterministic(f"{n.name}_mu", sum(
-                        [intercept] + self._get_parent_variables(n.name)), dims='obs')
+                    input = sum(self._get_parent_variables(n.name))
 
                 n.track_node(self._model, input)
             else:
@@ -168,6 +162,19 @@ class NestedModel:
 
         return parents
 
+    def _get_sigma_variables(self) -> dict[str, pt.TensorVariable]:
+        if self._model is None:
+            raise Exception("model hasn't been compiled yet")
+
+        variables = self._model.unobserved_RVs
+        sigmas = {}
+        for v in variables:
+            if v.name.endswith('_sigma'):
+                name = v.name.removesuffix('_sigma')
+                sigmas[name] = v
+
+        return sigmas
+
     def _get_mu_variables(self) -> dict[str, pt.TensorVariable]:
         if self._model is None:
             raise Exception("model hasn't been compiled yet")
@@ -208,14 +215,23 @@ class NestedModel:
 
         return fig
 
-    def summary(self) -> pd.DataFrame:
-        summary: pd.DataFrame = az.summary(self.idata,
-                                           var_names=self._get_free_RVs())
+    def summary(self, remove_intermediate: bool = True) -> pd.DataFrame:
+        if remove_intermediate:
+            summary: pd.DataFrame = az.summary(self.idata,
+                                               var_names=self._get_free_RVs())
+        else:
+            summary: pd.DataFrame = az.summary(self.idata)
+
         summary['prior'] = summary.index.map(self._get_prior_distribution_name)
         return summary
 
-    def plot_trace(self) -> plt.Figure:
-        return az.plot_trace(self.idata, var_names=self._get_free_RVs())
+    def plot_trace(self, remove_intermediate: bool = True) -> plt.Figure:
+        if remove_intermediate:
+            fig = az.plot_trace(self.idata, var_names=self._get_free_RVs())
+        else:
+            fig = az.plot_trace(self.idata)
+
+        return fig
 
     def _get_free_RVs(self) -> list[str]:
         return [v.name for v in self._model.free_RVs]
