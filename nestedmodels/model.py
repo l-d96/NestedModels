@@ -237,7 +237,7 @@ class NestedModel:
         return [v.name for v in self._model.free_RVs]
 
     def _get_prior_distribution_name(self, name: str) -> str:
-        var = self._model[name]
+        var = self._model[self._clean_varname(name)]
         split_name = " \\sim "
         latex_repr = var._repr_latex_()
         elements = re.findall(r"{(.*)}(\(.*\))",
@@ -248,6 +248,17 @@ class NestedModel:
         if self._model is not None:
             return True
         return False
+
+    @staticmethod
+    def _clean_varname(name: str) -> str:
+        # check if name contains index at the end
+        count = len(name)
+        if name.endswith("]"):
+            for ch in range(len(name)-1, -1, -1):
+                if name[ch] == "[":
+                    count = ch
+                    break
+        return name[:count]
 
 
 class CyclicalGraphError(Exception):
