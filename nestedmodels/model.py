@@ -17,7 +17,7 @@ class NestedModel:
         self._model: Optional[pm.Model] = None
         self._targets = None
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame, **kwargs) -> None:
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame, /, **kwargs) -> None:
         n_obs_x = X.shape[0]
         n_obs_y = y.shape[0]
         if n_obs_x != n_obs_y:
@@ -46,15 +46,20 @@ class NestedModel:
         sigma_all = pt.stack([sigmas[c] for c in target_variables], axis=1)
 
         with self._model:
-            target = pm.Normal('target', mu=mu_all, sigma=sigma_all,
-                               observed=observed_data,
-                               shape=(n_obs_y, len(target_variables)),
-                               dims=('obs', 'variables'))
+            pm.Normal('target', mu=mu_all, sigma=sigma_all,
+                      observed=observed_data,
+                      shape=(n_obs_y, len(target_variables)),
+                      dims=('obs', 'variables'))
 
         with self._model:
             self.idata = pm.sample(**kwargs)
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        ds = self.predict_with_samples(X)
+
+        return ds.mean(dim='samples').to_dataframe()
+
+    def predict_with_samples(self, X: pd.DataFrame) -> xr.Dataset:
         if not isinstance(X, pd.DataFrame):
             raise Exception("input must be a pandas dataframe.")
         if self._model is None:
