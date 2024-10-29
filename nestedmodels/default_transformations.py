@@ -36,12 +36,13 @@ def linear_hill(input_: pt.TensorVariable,
 def decay(input_: pt.TensorVariable,
           decay_param: float) -> pt.TensorVariable:
 
-    def inner_decay(input_row, cumulative_decay):
-        return input_row + (1-decay_param) * cumulative_decay
+    def inner_decay(input_row, cumulative_decay, decay_value):
+        return input_row + (1-decay_value) * cumulative_decay
 
     output, update = pytensor.scan(fn=inner_decay,
                                    outputs_info=[input_[0, ...]],
-                                   sequences=[input_[1:, ...]])
+                                   sequences=[input_[1:, ...]],
+                                   non_sequences=[decay_param])
     final_output = pt.concatenate([[input_[0, ...]], output])
 
     return final_output
