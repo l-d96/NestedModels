@@ -43,9 +43,8 @@ def decay(input_: pt.TensorVariable,
                                    outputs_info=[input_[0, ...]],
                                    sequences=[input_[1:, ...]])
     final_output = pt.concatenate([[input_[0, ...]], output])
-    func = pytensor.function(inputs=[input_], outputs=final_output)
 
-    return func
+    return final_output
 
 
 __all__ = [
