@@ -1,4 +1,5 @@
 import pytensor.tensor as pt
+import pytensor
 
 
 def saturation_function(input_: pt.TensorVariable,
@@ -32,10 +33,26 @@ def linear_hill(input_: pt.TensorVariable,
                            coefficient)
 
 
+def decay(input_: pt.TensorVariable,
+          decay_param: float) -> pt.TensorVariable:
+
+    def inner_decay(input_row, cumulative_decay):
+        return input_row + (1-decay_param) * cumulative_decay
+
+    output, update = pytensor.scan(fn=inner_decay,
+                                   outputs_info=[input_[0, ...]],
+                                   sequences=[input_[1:, ...]])
+    final_output = pt.concatenate([[input_[0, ...]], output])
+    func = pytensor.function(inputs=[input_], outputs=final_output)
+
+    return func
+
+
 __all__ = [
     'saturation_function',
     'linear_function',
     'linear_saturation',
     'hill_function',
-    'linear_hill'
+    'linear_hill',
+    'decay'
 ]
